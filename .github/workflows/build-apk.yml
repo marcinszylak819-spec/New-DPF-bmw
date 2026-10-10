@@ -91,6 +91,22 @@ jobs:
                   print(f"Aligned Java target in {path}")
           PY
 
+      - name: Force matching Java and Kotlin targets
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat >> "$PROJECT_ROOT/app/build.gradle.kts" <<'EOF'
+
+          tasks.withType<JavaCompile>().configureEach {
+              sourceCompatibility = "17"
+              targetCompatibility = "17"
+          }
+
+          tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+              kotlinOptions.jvmTarget = "17"
+          }
+          EOF
+
       - name: Build debug APK
         shell: bash
         run: |
