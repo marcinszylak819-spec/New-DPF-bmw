@@ -23,13 +23,13 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Install Android SDK packages
         shell: bash
         run: |
           set -euo pipefail
+          echo "ANDROID_HOME=${ANDROID_HOME:-/usr/local/lib/android/sdk}" >> "$GITHUB_ENV"
+          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
@@ -57,7 +57,6 @@ jobs:
           fi
           if [ -z "$ROOT" ]; then
             echo "::error::The ZIP does not appear to contain an Android/Gradle project (no settings.gradle or build.gradle found)."
-            echo "Please check the ZIP contents."
             exit 1
           fi
           echo "PROJECT_ROOT=$ROOT" >> "$GITHUB_ENV"
