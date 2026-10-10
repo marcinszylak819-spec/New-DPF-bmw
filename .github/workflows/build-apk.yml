@@ -23,6 +23,11 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
       - name: Install Android SDK packages
         shell: bash
         run: |
@@ -51,9 +56,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ROOT="$(find "$GITHUB_WORKSPACE/app-source" -type f \( -name settings.gradle -o -name settings.gradle.kts \) -printf '%h\n' | head -n 1)"
+          ROOT="$(find "$GITHUB_WORKSPACE/app-source" -type f \\( -name settings.gradle -o -name settings.gradle.kts \\) -printf '%h\\n' | head -n 1)"
           if [ -z "$ROOT" ]; then
-            ROOT="$(find "$GITHUB_WORKSPACE/app-source" -type f \( -name build.gradle -o -name build.gradle.kts \) -printf '%h\n' | head -n 1)"
+            ROOT="$(find "$GITHUB_WORKSPACE/app-source" -type f \\( -name build.gradle -o -name build.gradle.kts \\) -printf '%h\\n' | head -n 1)"
           fi
           if [ -z "$ROOT" ]; then
             echo "::error::The ZIP does not appear to contain an Android/Gradle project (no settings.gradle or build.gradle found)."
@@ -67,13 +72,7 @@ jobs:
         run: |
           set -euo pipefail
           cd "$PROJECT_ROOT"
-          if [ -f ./gradlew ]; then
-            chmod +x ./gradlew
-            ./gradlew --no-daemon assembleDebug
-          else
-            echo "::error::Gradle wrapper (gradlew) is missing. The project must include its wrapper."
-            exit 1
-          fi
+          gradle --no-daemon assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
