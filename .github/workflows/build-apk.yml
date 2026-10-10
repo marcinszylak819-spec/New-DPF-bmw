@@ -25,6 +25,12 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          tools: ''
+          packages: |
+            platform-tools
+            platforms;android-35
+            build-tools;35.0.0
 
       - name: Extract app source ZIP
         shell: bash
@@ -38,7 +44,7 @@ jobs:
           mkdir -p app-source
           unzip -o "$ZIP_FILE" -d app-source
           echo "ZIP extracted from: $ZIP_FILE"
-          find app-source -maxdepth 4 -type f | head -200
+          find app-source -maxdepth 5 -type f | head -200
 
       - name: Locate Android Gradle project
         shell: bash
@@ -50,7 +56,7 @@ jobs:
           fi
           if [ -z "$ROOT" ]; then
             echo "::error::The ZIP does not appear to contain an Android/Gradle project (no settings.gradle or build.gradle found)."
-            echo "Please check the workflow log and the ZIP contents."
+            echo "Please check the ZIP contents."
             exit 1
           fi
           echo "PROJECT_ROOT=$ROOT" >> "$GITHUB_ENV"
@@ -65,16 +71,14 @@ jobs:
             chmod +x ./gradlew
             ./gradlew --no-daemon assembleDebug
           else
-            echo "Gradle wrapper not found; using installed Gradle."
-            gradle --no-daemon assembleDebug
+            echo "::error::Gradle wrapper (gradlew) is missing. The project must include its wrapper."
+            exit 1
           fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: F10-DPF-Monitor-debug-apk
-          path: |
-            app-source/**/*.apk
-            app-source/**/build/outputs/apk/**/*.apk
+          path: app-source/**/build/outputs/apk/**/*.apk
           if-no-files-found: error
           retention-days: 14
