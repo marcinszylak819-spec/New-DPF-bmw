@@ -74,6 +74,23 @@ jobs:
           echo "PROJECT_ROOT=$ROOT" >> "$GITHUB_ENV"
           echo "Found project at: $ROOT"
 
+      - name: Align Java and Kotlin JVM targets
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          root = Path.cwd() / "app-source"
+          for path in root.rglob("build.gradle*"):
+              text = path.read_text(errors="ignore")
+              updated = re.sub(r"JavaVersion\\.VERSION_1_8", "JavaVersion.VERSION_17", text)
+              updated = re.sub(r"VERSION_1_8", "VERSION_17", updated)
+              if updated != text:
+                  path.write_text(updated)
+                  print(f"Aligned Java target in {path}")
+          PY
+
       - name: Build debug APK
         shell: bash
         run: |
