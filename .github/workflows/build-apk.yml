@@ -42,7 +42,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ZIP_FILE="$(find . -maxdepth 2 -type f -iname '*.zip' | head -n 1)"
+          ZIP_FILE="$(find . -maxdepth 2 -type f -iname '*.zip' -print -quit)"
           if [ -z "$ZIP_FILE" ]; then
             echo "::error::No source ZIP file found in repository."
             exit 1
@@ -56,14 +56,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ROOT="$(find "$GITHUB_WORKSPACE/app-source" -type f \\( -name settings.gradle -o -name settings.gradle.kts \\) -printf '%h\\n' | head -n 1)"
-          if [ -z "$ROOT" ]; then
-            ROOT="$(find "$GITHUB_WORKSPACE/app-source" -type f \\( -name build.gradle -o -name build.gradle.kts \\) -printf '%h\\n' | head -n 1)"
+          ROOT_FILE="$(find "$GITHUB_WORKSPACE/app-source" -type f -name settings.gradle.kts -print -quit)"
+          if [ -z "$ROOT_FILE" ]; then
+            ROOT_FILE="$(find "$GITHUB_WORKSPACE/app-source" -type f -name settings.gradle -print -quit)"
           fi
-          if [ -z "$ROOT" ]; then
-            echo "::error::The ZIP does not appear to contain an Android/Gradle project (no settings.gradle or build.gradle found)."
+          if [ -z "$ROOT_FILE" ]; then
+            ROOT_FILE="$(find "$GITHUB_WORKSPACE/app-source" -type f -name build.gradle.kts -print -quit)"
+          fi
+          if [ -z "$ROOT_FILE" ]; then
+            ROOT_FILE="$(find "$GITHUB_WORKSPACE/app-source" -type f -name build.gradle -print -quit)"
+          fi
+          if [ -z "$ROOT_FILE" ]; then
+            echo "::error::The ZIP does not appear to contain an Android/Gradle project."
             exit 1
           fi
+          ROOT="$(dirname "$ROOT_FILE")"
           echo "PROJECT_ROOT=$ROOT" >> "$GITHUB_ENV"
           echo "Found project at: $ROOT"
 
