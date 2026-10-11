@@ -102,6 +102,54 @@ jobs:
           }
           EOF
 
+
+      - name: Patch ELM initialization and test ECU response
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path(__import__('os').environ['PROJECT_ROOT']) / 'app/src/main/java/pl/f10/dpfmonitor/MainActivity.kt'
+          s = p.read_text()
+          old = '''                output?.write("ATZ\\r".toByteArray(Charsets.US_ASCII))
+                output?.flush()
+                Thread.sleep(900)
+                val buffer = ByteArray(512)
+                val available = input?.available() ?: 0
+                val reply = if (available > 0) { val count = input!!.read(buffer, 0, minOf(buffer.size, available)); String(buffer, 0, count, Charsets.US_ASCII).replace("\\r", " ").replace("\\n", " ").trim() } else "Adapter nie zwrócił jeszcze identyfikacji ELM"
+                runOnUiThread {
+                    vm.connected = true
+                    vm.connecting = false
+                    vm.lastResponse = reply.take(120)
+                    vm.message = "Połączono z adapterem Bluetooth. Odczyt statusu DPF z BMW DDE nie jest jeszcze zaimplementowany — połączenie z adapterem nie oznacza odczytu ECU."
+                }'''
+          new = '''                fun command(cmd: String, waitMs: Long = 350): String {
+                    val out = output ?: return ""
+                    val inp = input ?: return ""
+                    while (inp.available() > 0) inp.read(ByteArray(minOf(inp.available(), 512)))
+                    out.write((cmd + "\\r").toByteArray(Charsets.US_ASCII)); out.flush()
+                    Thread.sleep(waitMs)
+                    val result = StringBuilder(); val buffer = ByteArray(256)
+                    val deadline = System.currentTimeMillis() + 1200
+                    while (System.currentTimeMillis() < deadline) {
+                        val n = inp.available()
+                        if (n > 0) { val count = inp.read(buffer, 0, minOf(n, buffer.size)); if (count > 0) result.append(String(buffer, 0, count, Charsets.US_ASCII)); if (result.contains(">")) break }
+                        else Thread.sleep(40)
+                    }
+                    return result.toString().replace(">", "").replace("\\r", " ").replace("\\n", " ").trim()
+                }
+                command("ATZ", 1000); command("ATE0"); command("ATL0"); command("ATS0"); command("ATH1"); command("ATSP6")
+                val ecuReply = command("0100", 700)
+                runOnUiThread {
+                    vm.connected = true; vm.connecting = false
+                    vm.lastResponse = ecuReply.ifBlank { "Brak odpowiedzi na 0100" }.take(120)
+                    vm.message = if (ecuReply.contains("41 00") || ecuReply.contains("4100")) "Adapter odpowiada na standardowe OBD-II. Parametry DPF BMW N47 wymagają odczytu specyficznych danych DDE; nie są zastępowane danymi ogólnymi." else "Bluetooth działa, ale sterownik nie potwierdził odpowiedzi na standardowe zapytanie 0100. Dane DPF DDE nie zostały odczytane."
+                }'''
+          if old not in s:
+              raise SystemExit('Expected Bluetooth/ATZ block not found; refusing unsafe patch')
+          p.write_text(s.replace(old, new, 1))
+          print('Patched ELM initialization and ECU probe')
+          PY
+
       - name: Build debug APK
         shell: bash
         run: |
